@@ -5,10 +5,12 @@ import React, {
   useCallback,
   KeyboardEvent,
 } from 'react';
-import { Cell } from '@/lib/orora';
-import { useSpring, animated } from 'react-spring';
+import { Cell, StatusType } from '@/lib/orora';
+import { useSpring, animated } from '@react-spring/web';
 import dynamic from 'next/dynamic';
-import { MdDeleteOutline } from 'react-icons/md';
+import 'katex/dist/katex.min.css';
+import Latex from 'react-latex-next';
+import SettingBar from './settingBar';
 
 const Editor = dynamic(() => import('@monaco-editor/react'), { ssr: false });
 
@@ -19,6 +21,8 @@ interface OroraCellProps {
   executeCell: (cell: Cell) => void;
   isSelected: boolean;
   onSelect: () => void;
+  selectedCellId: string | null;
+  updateShowStatus: (id: string, status: StatusType) => void;
 }
 
 const OroraCell: React.FC<OroraCellProps> = ({
@@ -28,6 +32,8 @@ const OroraCell: React.FC<OroraCellProps> = ({
   executeCell,
   isSelected,
   onSelect,
+  updateShowStatus,
+  selectedCellId,
 }) => {
   const editorRef = useRef<any>(null);
   const [editorHeight, setEditorHeight] = useState<number | string>('auto');
@@ -35,17 +41,41 @@ const OroraCell: React.FC<OroraCellProps> = ({
   const contentRef = useRef<HTMLDivElement>(null);
   const [output, setOutput] = useState<string[]>(cell.output);
   const [isClient, setIsClient] = useState(false);
-  const [outputHeight, setOutputHeight] = useState(0);
-
-  useEffect(() => {
-    setIsClient(true);
-  }, []);
+  const cellRef = useRef<HTMLDivElement>(null);
 
   const [springProps, setSpringProps] = useSpring(() => ({
     height: 0,
     opacity: 0,
     config: { mass: 1, tension: 280, friction: 60 },
   }));
+
+  const [selectedSpringProps, setSelectedSpringProps] = useSpring(() => ({
+    backgroundColor: 'rgba(255, 255, 255, 1)', // white
+    config: { mass: 1, tension: 280, friction: 60 },
+  }));
+
+  const [settingBarSpringProps, setSettingBarSpringProps] = useSpring(() => ({
+    opacity: 0,
+    transform: 'translateY(-10px)',
+    config: { mass: 1, tension: 280, friction: 60 },
+  }));
+
+  useEffect(() => {
+    setSelectedSpringProps({
+      backgroundColor: isSelected
+        ? 'rgba(239, 246, 255, 1)'
+        : 'rgba(255, 255, 255, 1)', // blue-50 : white
+    });
+
+    setSettingBarSpringProps({
+      opacity: isSelected ? 1 : 0,
+      transform: isSelected ? 'translateY(0px)' : 'translateY(-10px)',
+    });
+  }, [isSelected, setSelectedSpringProps, setSettingBarSpringProps]);
+
+  useEffect(() => {
+    setIsClient(true);
+  }, []);
 
   useEffect(() => {
     setOutput(cell.output);
@@ -54,7 +84,6 @@ const OroraCell: React.FC<OroraCellProps> = ({
       const resizeObserver = new ResizeObserver((entries) => {
         for (let entry of entries) {
           const newHeight = entry.contentRect.height;
-          setOutputHeight(newHeight);
           setSpringProps({
             height: newHeight,
             opacity: newHeight > 0 ? 1 : 0,
@@ -82,6 +111,22 @@ const OroraCell: React.FC<OroraCellProps> = ({
   const handleDeleteCell = useCallback(() => {
     deleteCell(cell.id);
   }, [deleteCell, cell.id]);
+
+  // const handleUpdateShowStatus = useCallback(
+  //   (status: StatusType) => {
+  //     updateShowStatus(selectedCellId as string, status);
+  //   },
+  //   [updateShowStatus, selectedCellId]
+  // );
+
+  const handleUpdateShowStatus = useCallback(
+    (status: StatusType) => {
+      const scrollPosition = window.pageYOffset;
+      updateShowStatus(selectedCellId as string, status);
+      setTimeout(() => window.scrollTo(0, window.pageYOffset), 0);
+    },
+    [updateShowStatus, selectedCellId]
+  );
 
   const handleExecuteCell = useCallback(() => {
     if (isSelected) {
@@ -126,42 +171,48 @@ const OroraCell: React.FC<OroraCellProps> = ({
   return (
     isClient && (
       <>
-        <div className='w-full relative -my-3 z-10'>
-          <div className='absolute right-2 transform -translate-y-1/2'>
-            <div className='flex items-center px-1 text-sm bg-gray-900 text-white rounded-sm opacity-30 hover:opacity-100 transition-opacity duration-200 shadow-md'>
-              <button onClick={handleDeleteCell} className='flex items-center'>
-                <MdDeleteOutline />
-                <p>Delete</p>
-              </button>
-            </div>
-          </div>
-        </div>
-        <div
-          className={`mb-8 border overflow-hidden h-auto transition-colors duration-200 ${
-            isSelected ? 'bg-blue-50' : 'bg-white'
-          }`}
+        <animated.div
+          style={settingBarSpringProps}
+          className='w-full relative -my-3 z-10'
+        >
+          <SettingBar
+            key={cell.id}
+            onDelete={handleDeleteCell}
+            updateShowStatus={handleUpdateShowStatus}
+            showStatus={cell.showStatus}
+          />
+        </animated.div>
+        <animated.div
+          style={selectedSpringProps}
+          className={`mb-8 overflow-hidden h-auto`}
           onClick={handleClick}
           onKeyDown={handleKeyDown}
           tabIndex={0}
         >
           <div className='w-full pt-2 pr-2'>
-            <Editor
-              language='tex'
-              theme='vs-white'
-              value={cell.content}
-              onChange={(value) => updateCell(cell.id, value || '')}
-              options={{
-                minimap: { enabled: false },
-                fontFamily: 'font-code, serif',
-                automaticLayout: true,
-                scrollbar: { vertical: 'hidden', horizontal: 'hidden' },
-                scrollBeyondLastLine: false,
-                overviewRulerLanes: 0,
-              }}
-              height={editorHeight}
-              onMount={handleEditorDidMount}
-              className={isSelected ? 'bg-blue-50' : 'bg-white'}
-            />
+            {(cell.showStatus === 'both' || cell.showStatus === 'code') && (
+              <Editor
+                language='tex'
+                theme='vs-white'
+                value={cell.content}
+                onChange={(value) => updateCell(cell.id, value || '')}
+                options={{
+                  minimap: { enabled: false },
+                  fontFamily: 'font-code, serif',
+                  automaticLayout: true,
+                  scrollbar: { vertical: 'hidden', horizontal: 'hidden' },
+                  scrollBeyondLastLine: false,
+                  overviewRulerLanes: 0,
+                }}
+                height={editorHeight}
+                onMount={handleEditorDidMount}
+              />
+            )}
+            {(cell.showStatus === 'both' || cell.showStatus === 'latex') && (
+              <div className='p-2'>
+                <Latex>{`${cell.content}`}</Latex>
+              </div>
+            )}
           </div>
           <div className='flex justify-between items-center p-2'>
             <div className='text-sm'>
@@ -198,7 +249,7 @@ const OroraCell: React.FC<OroraCellProps> = ({
             <div ref={contentRef}>
               {cell.status === 'running' && output.length === 0 ? (
                 <div className='flex items-center p-4 justify-center h-8'>
-                  <div className='animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-white'></div>
+                  <div className='animate-spin rounded-full h-4 w-4'></div>
                 </div>
               ) : output.length > 0 ? (
                 <div className='p-4'>
@@ -209,7 +260,7 @@ const OroraCell: React.FC<OroraCellProps> = ({
               ) : null}
             </div>
           </animated.div>
-        </div>
+        </animated.div>
       </>
     )
   );

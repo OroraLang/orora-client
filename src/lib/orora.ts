@@ -1,11 +1,14 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 
+export type StatusType = 'code' | 'both' | 'latex';
+
 export interface Cell {
   id: string;
   content: string;
   output: string[];
   status: 'idle' | 'running' | 'completed';
+  showStatus: StatusType;
 }
 
 export interface OroraState {
@@ -19,6 +22,7 @@ export interface OroraState {
   error: string | null;
   selectedCellId: string | null;
   setSelectedCellId: (id: string | null) => void;
+  updateCellShowStatus: (id: string, showStatus: StatusType) => void;
 }
 
 const sanitizeJsonString = (str: string): string => {
@@ -45,11 +49,19 @@ const getWebSocketUrl = () => {
 
 export function useOrora(): OroraState {
   const [cells, setCells] = useState<Cell[]>([
-    { id: uuidv4(), content: '', output: [], status: 'idle' },
+    {
+      id: uuidv4(),
+      content: '',
+      output: [],
+      status: 'idle',
+      showStatus: 'code',
+    },
   ]);
   const [isConnected, setIsConnected] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [selectedCellId, setSelectedCellId] = useState<string | null>(null);
+  const [selectedCellId, setSelectedCellId] = useState<string | null>(
+    cells[0].id
+  );
   const ws = useRef<WebSocket | null>(null);
 
   const connectWebSocket = useCallback(() => {
@@ -151,6 +163,7 @@ export function useOrora(): OroraState {
         content: '',
         output: [],
         status: 'idle',
+        showStatus: 'code',
       };
       if (index === undefined) {
         return [...prevCells, newCell];
@@ -179,11 +192,10 @@ export function useOrora(): OroraState {
     (id: string) => {
       setCells((prevCells) => {
         const index = prevCells.findIndex((cell) => cell.id === id);
-        if (index === -1) return prevCells; // Cell not found
+        if (index === -1) return prevCells;
 
         const newCells = prevCells.filter((cell) => cell.id !== id);
 
-        // Update selectedCellId if the deleted cell was selected
         if (id === selectedCellId) {
           if (newCells.length === 0) {
             setSelectedCellId(null);
@@ -253,6 +265,17 @@ export function useOrora(): OroraState {
     [getCell]
   );
 
+  const updateCellShowStatus = useCallback(
+    (id: string, showStatus: StatusType) => {
+      setCells((prevCells) =>
+        prevCells.map((cell) =>
+          cell.id === id ? { ...cell, showStatus } : cell
+        )
+      );
+    },
+    []
+  );
+
   return {
     cells,
     addCell,
@@ -264,5 +287,6 @@ export function useOrora(): OroraState {
     error,
     selectedCellId,
     setSelectedCellId,
+    updateCellShowStatus,
   };
 }

@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { useOrora, Cell } from '@/lib/orora';
+import { useOrora, Cell, StatusType } from '@/lib/orora';
 import dynamic from 'next/dynamic';
 import { useTransition, animated, config } from '@react-spring/web';
 
@@ -44,6 +44,7 @@ const OroraApp: React.FC = () => {
     getCell,
     selectedCellId,
     setSelectedCellId,
+    updateCellShowStatus,
   } = useOrora();
   const [isClient, setIsClient] = useState(false);
 
@@ -88,12 +89,12 @@ const OroraApp: React.FC = () => {
 
   const items: AnimatedCellItem[] = useMemo(() => {
     return cells
-      .flatMap((cell, index) => [
-        { type: 'button', id: `button-${index}`, index },
-        { type: 'cell', id: cell.id, cell },
+      .flatMap((cell, index): AnimatedCellItem[] => [
+        { type: 'button' as const, id: `button-${index}`, index },
+        { type: 'cell' as const, id: cell.id, cell },
       ])
       .concat({
-        type: 'button',
+        type: 'button' as const,
         id: `button-${cells.length}`,
         index: cells.length,
       });
@@ -129,12 +130,15 @@ const OroraApp: React.FC = () => {
               fallback={<div className='h-32 bg-gray-100 animate-pulse'></div>}
             >
               <OroraCell
+                key={item.cell.id} // 이 부분을 확인하세요
                 cell={item.cell}
                 updateCell={memoizedUpdateCell}
                 deleteCell={deleteCell}
                 executeCell={memoizedExecuteCell}
                 isSelected={selectedCellId === item.cell.id}
                 onSelect={() => setSelectedCellId(item.cell.id)}
+                updateShowStatus={updateCellShowStatus}
+                selectedCellId={selectedCellId}
               />
             </React.Suspense>
           ) : null}
@@ -149,6 +153,7 @@ const OroraApp: React.FC = () => {
       memoizedAddCell,
       selectedCellId,
       setSelectedCellId,
+      updateCellShowStatus,
     ]
   );
 
@@ -164,8 +169,8 @@ const OroraApp: React.FC = () => {
   }
 
   return (
-    <>
-      <header className='bg-white shadow'>
+    <div className='flex flex-col h-screen'>
+      <header className='bg-white shadow sticky top-0 z-50'>
         <div className='w-full flex py-3 px-4 items-center justify-between sm:px-6 lg:px-8'>
           <div className='h-full flex items-center gap-8'>
             <h1 className='text-3xl text-gray-900'>Orora</h1>
@@ -187,14 +192,10 @@ const OroraApp: React.FC = () => {
           )}
         </div>
       </header>
-      <div className='h-full bg-gray-100'>
-        <main className='w-full h-full'>
-          <div className='w-full h-full overflow-y-scroll pb-36 px-6 pt-16'>
-            {memoizedCells}
-          </div>
-        </main>
+      <div className='flex-1 bg-gray-100 w-full h-full overflow-y-scroll pb-36 px-6 pt-16'>
+        {memoizedCells}
       </div>
-    </>
+    </div>
   );
 };
 
