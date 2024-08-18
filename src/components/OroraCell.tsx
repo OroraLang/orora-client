@@ -41,7 +41,6 @@ const OroraCell: React.FC<OroraCellProps> = ({
   const contentRef = useRef<HTMLDivElement>(null);
   const [output, setOutput] = useState<string[]>(cell.output);
   const [isClient, setIsClient] = useState(false);
-  const cellRef = useRef<HTMLDivElement>(null);
 
   const [springProps, setSpringProps] = useSpring(() => ({
     height: 0,
@@ -121,9 +120,7 @@ const OroraCell: React.FC<OroraCellProps> = ({
 
   const handleUpdateShowStatus = useCallback(
     (status: StatusType) => {
-      const scrollPosition = window.pageYOffset;
       updateShowStatus(selectedCellId as string, status);
-      setTimeout(() => window.scrollTo(0, window.pageYOffset), 0);
     },
     [updateShowStatus, selectedCellId]
   );
@@ -206,11 +203,14 @@ const OroraCell: React.FC<OroraCellProps> = ({
                 }}
                 height={editorHeight}
                 onMount={handleEditorDidMount}
+                className=''
               />
             )}
             {(cell.showStatus === 'both' || cell.showStatus === 'latex') && (
-              <div className='p-2'>
-                <Latex>{`${cell.content}`}</Latex>
+              <div className={`px-4 ${cell.showStatus === 'both' && 'mt-2'}`}>
+                <Latex
+                  macros={{ '\\otherwise': '\\text{otherwise}' }}
+                >{`${cell.content}`}</Latex>
               </div>
             )}
           </div>

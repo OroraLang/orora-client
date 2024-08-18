@@ -107,6 +107,10 @@ export function useOrora(): OroraState {
                       output: [...cell.output, ...newLines],
                     };
                   } else if (data.status === 'completed') {
+                    if (newLines.length === 0 && cell.output.length == 0) {
+                      newLines.push('No output');
+                    }
+
                     return {
                       ...cell,
                       status: 'completed',
