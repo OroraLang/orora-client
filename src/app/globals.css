@@ -52,3 +52,20 @@ body {
     text-wrap: balance;
   }
 }
+
+.scrollbar {
+  overflow-y: scroll;
+}
+
+.scrollbar::-webkit-scrollbar {
+  width: 5px;
+}
+
+.scrollbar::-webkit-scrollbar-thumb {
+  background: rgb(134, 134, 134);
+  border-radius: 2px;
+}
+
+.scrollbar::-webkit-scrollbar-track {
+  background: rgba(196, 196, 196, 0.1);
+}

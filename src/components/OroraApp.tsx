@@ -192,7 +192,7 @@ const OroraApp: React.FC = () => {
           )}
         </div>
       </header>
-      <div className='flex-1 bg-gray-100 w-full h-full overflow-y-scroll pb-36 px-6 pt-16'>
+      <div className='scrollbar flex-1 bg-gray-100 w-full h-full overflow-y-scroll pb-36 px-6 pt-16'>
         {memoizedCells}
       </div>
     </div>
