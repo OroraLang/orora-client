@@ -40,7 +40,7 @@ const sanitizeJsonString = (str: string): string => {
 };
 
 const getWebSocketUrl = () => {
-  const apiUrl = process.env.NEXT_PUBLIC_API_URL;
+  const apiUrl = 'http://localhost:8421';
   if (!apiUrl) {
     throw new Error('NEXT_PUBLIC_API_URL is not defined in .env.local');
   }
