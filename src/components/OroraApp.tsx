@@ -47,6 +47,7 @@ const OroraApp: React.FC = () => {
     updateCellShowStatus,
   } = useOrora();
   const [isClient, setIsClient] = useState(false);
+  const [projectName, setProjectName] = useState('');
 
   useEffect(() => {
     setIsClient(true);
@@ -176,7 +177,9 @@ const OroraApp: React.FC = () => {
             <h1 className='text-3xl text-gray-900'>Orora</h1>
             <input
               type='text'
-              className='block pt-1 text-2xl h-full font-large text-gray-900 dark:text-white'
+              value={projectName}
+              onChange={(e) => setProjectName(e.target.value)}
+              className='block pt-1 text-2xl h-full font-large text-gray-900'
               placeholder='Project Name'
             />
           </div>

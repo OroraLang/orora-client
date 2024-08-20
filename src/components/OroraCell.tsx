@@ -164,6 +164,37 @@ const OroraCell: React.FC<OroraCellProps> = ({
   if (!cell) {
     return null;
   }
+  const unifyLatexDelimiters = (text: string): string => {
+    return text.replace(/\$\$(.*?)\$\$/g, (_, latex) => `$${latex}$`);
+  };
+
+  const splitContent = (text: string): string[] => {
+    const parts: string[] = [];
+    let isInLatex = false;
+    let currentPart = '';
+
+    for (let i = 0; i < text.length; i++) {
+      if (text[i] === '$' && (i === 0 || text[i - 1] !== '\\')) {
+        if (isInLatex) {
+          currentPart += '$';
+          parts.push(currentPart);
+          currentPart = '';
+        } else {
+          if (currentPart) parts.push(currentPart);
+          currentPart = '$';
+        }
+        isInLatex = !isInLatex;
+      } else {
+        currentPart += text[i];
+      }
+    }
+
+    if (currentPart) parts.push(currentPart);
+    return parts;
+  };
+
+  const unifiedContent = unifyLatexDelimiters(cell.content);
+  const parts = splitContent(unifiedContent);
 
   return (
     isClient && (
@@ -207,10 +238,32 @@ const OroraCell: React.FC<OroraCellProps> = ({
               />
             )}
             {(cell.showStatus === 'both' || cell.showStatus === 'latex') && (
-              <div className={`px-4 ${cell.showStatus === 'both' && 'mt-2'}`}>
-                <Latex
+              <div
+                className={`px-4 flex flex-col ${
+                  cell.showStatus === 'both' && 'mt-2'
+                }`}
+              >
+                {parts.map((part, index) => {
+                  if (part.startsWith('$') && part.endsWith('$')) {
+                    // LaTeX 표현식
+                    if (part === '$$') return null;
+                    return (
+                      <Latex
+                        key={index}
+                        macros={{ '\\otherwise': '\\text{otherwise}' }}
+                      >
+                        {part}
+                      </Latex>
+                    );
+                  } else {
+                    // 일반 텍스트
+                    return <span key={index}>{part}</span>;
+                  }
+                })}
+
+                {/* <Latex
                   macros={{ '\\otherwise': '\\text{otherwise}' }}
-                >{`${cell.content}`}</Latex>
+                >{`${cell.content}`}</Latex> */}
               </div>
             )}
           </div>
