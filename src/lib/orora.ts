@@ -12,7 +12,7 @@ export interface Cell {
 }
 
 export interface OroraState {
-  cells: Cell[];
+  getCells: () => Cell[];
   addCell: (index?: number) => string;
   updateCell: (id: string, content: string) => void;
   deleteCell: (id: string) => void;
@@ -23,6 +23,7 @@ export interface OroraState {
   selectedCellId: string | null;
   setSelectedCellId: (id: string | null) => void;
   updateCellShowStatus: (id: string, showStatus: StatusType) => void;
+  deleteOutput: (id: string) => void;
 }
 
 const sanitizeJsonString = (str: string): string => {
@@ -192,6 +193,15 @@ export function useOrora(): OroraState {
     setSelectedCellId(id);
   }, []);
 
+  const deleteOutput = useCallback((id: string) => {
+    setCells((cells) =>
+      cells.map((cell) => (cell.id === id ? { ...cell, output: [] } : cell))
+    );
+    // setCells((prevCells) =>
+    //   prevCells.map((cell) => (cell.id === id ? { ...cell, output: [] } : cell))
+    // );
+  }, []);
+
   const deleteCell = useCallback(
     (id: string) => {
       setCells((prevCells) => {
@@ -280,8 +290,12 @@ export function useOrora(): OroraState {
     []
   );
 
+  const getCells = useCallback(() => {
+    return cells;
+  }, [cells]);
+
   return {
-    cells,
+    getCells,
     addCell,
     updateCell,
     deleteCell,
@@ -292,5 +306,6 @@ export function useOrora(): OroraState {
     selectedCellId,
     setSelectedCellId,
     updateCellShowStatus,
+    deleteOutput,
   };
 }

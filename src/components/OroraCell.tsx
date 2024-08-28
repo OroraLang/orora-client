@@ -23,6 +23,7 @@ interface OroraCellProps {
   onSelect: () => void;
   selectedCellId: string | null;
   updateShowStatus: (id: string, status: StatusType) => void;
+  deleteOutput: (id: string) => void;
 }
 
 const OroraCell: React.FC<OroraCellProps> = ({
@@ -34,6 +35,7 @@ const OroraCell: React.FC<OroraCellProps> = ({
   onSelect,
   updateShowStatus,
   selectedCellId,
+  deleteOutput,
 }) => {
   const editorRef = useRef<any>(null);
   const [editorHeight, setEditorHeight] = useState<number | string>('auto');
@@ -126,13 +128,17 @@ const OroraCell: React.FC<OroraCellProps> = ({
   );
 
   const handleExecuteCell = useCallback(() => {
-    if (isSelected) {
+    if (selectedCellId === cell.id) {
       executeCell(cell);
     } else {
       onSelect();
       setTimeout(() => executeCell(cell), 0);
     }
-  }, [executeCell, cell, isSelected, onSelect]);
+  }, [executeCell, cell, onSelect, selectedCellId]);
+
+  const handleDeleteOutput = useCallback(() => {
+    deleteOutput(cell.id);
+  }, [deleteOutput, cell.id]);
 
   const handleEditorDidMount = useCallback(
     (editor: any) => {
@@ -245,18 +251,18 @@ const OroraCell: React.FC<OroraCellProps> = ({
               >
                 {parts.map((part, index) => {
                   if (part.startsWith('$') && part.endsWith('$')) {
-                    // LaTeX 표현식
                     if (part === '$$') return null;
                     return (
-                      <Latex
-                        key={index}
-                        macros={{ '\\otherwise': '\\text{otherwise}' }}
-                      >
-                        {part}
-                      </Latex>
+                      <>
+                        <Latex
+                          key={index}
+                          macros={{ '\\otherwise': '\\text{otherwise}' }}
+                        >
+                          {part}
+                        </Latex>
+                      </>
                     );
                   } else {
-                    // 일반 텍스트
                     return <span key={index}>{part}</span>;
                   }
                 })}
@@ -282,17 +288,26 @@ const OroraCell: React.FC<OroraCellProps> = ({
                 {cell.status.charAt(0).toUpperCase() + cell.status.slice(1)}
               </span>
             </div>
-            <button
-              onClick={handleExecuteCell}
-              className={`px-2 text-sm ${
-                cell.status === 'running'
-                  ? 'bg-gray-500'
-                  : 'bg-blue-500 hover:bg-blue-600'
-              } text-white rounded`}
-              disabled={cell.status === 'running'}
-            >
-              {cell.status === 'running' ? 'Running...' : 'Run'}
-            </button>
+            <div className='flex gap-2'>
+              <button
+                onClick={handleDeleteOutput}
+                className={`px-2 text-sm bg-blue-500 hover:bg-blue-600 text-white rounded`}
+                disabled={cell.output.length === 0}
+              >
+                Delete Output
+              </button>
+              <button
+                onClick={handleExecuteCell}
+                className={`px-2 text-sm ${
+                  cell.status === 'running'
+                    ? 'bg-gray-500'
+                    : 'bg-blue-500 hover:bg-blue-600'
+                } text-white rounded`}
+                disabled={cell.status === 'running'}
+              >
+                {cell.status === 'running' ? 'Running...' : 'Run'}
+              </button>
+            </div>
           </div>
           <animated.div
             ref={outputRef}

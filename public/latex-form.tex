@@ -1,0 +1,67 @@
+\documentclass{article}
+\usepackage{listings}
+\usepackage{xcolor}
+\usepackage{amsmath}
+\usepackage{geometry}
+\usepackage[most]{tcolorbox}
+
+\setlength{\parindent}{0pt}
+
+\lstdefinestyle{ororastyle}{
+    basicstyle=\ttfamily\small,
+    breaklines=true,
+    escapeinside={(*@}{@*)},
+    mathescape=true
+}
+
+\geometry{
+  a4paper,
+  left=25mm,
+  right=25mm,
+  top=32mm,
+  bottom=34mm
+}
+
+\newenvironment{for}[2]
+{
+  \par\noindent\textbf{for} #1 $\in$ #2  \textbf{do}
+  \begin{quote}\ttfamily
+}
+{
+  \end{quote}
+  \par\noindent\textbf{end for}
+}
+
+\newenvironment{while}[1]
+{
+  \par\noindent\textbf{while} #1 \textbf{do}
+  \begin{quote}\ttfamily
+}
+{
+  \end{quote}
+  \par\noindent\textbf{end while}
+}
+
+\newcommand{\otherwise}{\text{otherwise}}
+\definecolor{my-blue}{RGB}{55,64,200}
+
+\tcbset{
+  my-box/.style={
+    enhanced,
+    % colback=white,
+    colframe=#1,
+    boxrule=0.2mm
+  }
+}
+
+\newcommand{\tbox}[1]{
+  \begin{tcolorbox}[my-box=my-blue]
+    {#1}
+  \end{tcolorbox}
+}
+
+\newcommand{\ttbox}[1]{
+  \begin{tcolorbox}[my-box=my-blue, left skip=2em, right skip=2em]
+    {#1}
+  \end{tcolorbox}
+}

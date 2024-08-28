@@ -4,6 +4,19 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useOrora, Cell, StatusType } from '@/lib/orora';
 import dynamic from 'next/dynamic';
 import { useTransition, animated, config } from '@react-spring/web';
+import {
+  transitions,
+  positions,
+  Provider as AlertProvider,
+  useAlert,
+} from 'react-alert';
+import AlertTemplate from 'react-alert-template-basic';
+
+const options = {
+  position: positions.TOP_CENTER,
+  timeout: 5000,
+  transition: transitions.SCALE,
+};
 
 const OroraCell = dynamic(() => import('./OroraCell'), {
   loading: () => <div className='h-32 bg-gray-100 animate-pulse'></div>,
@@ -32,12 +45,90 @@ const AddCellButton: React.FC<{
 
 AddCellButton.displayName = 'AddCellButton';
 
+const LatexConvertButton: React.FC<{ title: string; cells: Cell[] }> = ({
+  title,
+  cells,
+}) => {
+  const [latexForm, setLatexForm] = useState<string>('');
+  const [latexContent, setLatexContent] = useState<string>('');
+  const alert = useAlert();
+
+  useEffect(() => {
+    fetch('/latex-form.tex')
+      .then((response) => response.text())
+      .then((data) => {
+        setLatexForm(data);
+      })
+      .catch((error) => console.error('Error loading LaTeX content:', error));
+  }, []);
+
+  useEffect(() => {
+    const mergedContent = cells
+      .map((cell) => {
+        const contentWithMarker = cell.content;
+        const outputFormatted = cell.output
+          .map((line) => `${line}\n`)
+          .join('\n');
+        return `${contentWithMarker}\n\n\\vspace{0.5em}\\tbox{${outputFormatted}}`;
+      })
+      .join('\n\n\\vspace{1em}\n\n');
+
+    setLatexContent(mergedContent);
+  }, [cells]);
+
+  // useEffect(() => {
+  //   setLatexContent(cells.map((cell) => cell.content).join('\\\\\n\n'));
+  // }, [cells]);
+
+  const handleConvert = async () => {
+    try {
+      console.log(
+        `${latexForm}\n\\title{${title}}\\author{}\\begin{document}\\maketitle\n${latexContent}\n\\end{document}`
+      );
+      alert.show('Converting to PDF...', { type: 'info' });
+      console.log("Sending request to 'http://localhost:16842/convert-latex'");
+      const response = await fetch('http://localhost:16842/convert-latex', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          latex: String(
+            `${latexForm}\n\\title{${title}}\\author{}\\begin{document}\\maketitle\n${latexContent}\n\\end{document}`
+          ),
+        }),
+      });
+
+      if (response.ok) {
+        const blob = await response.blob();
+        const url = URL.createObjectURL(blob);
+        window.open(url, '_blank', 'noopener, noreferrer');
+        alert.success('Converted to PDF successfully');
+      } else {
+        console.error('Failed to convert LaTeX');
+        alert.error('Failed to convert LaTeX');
+      }
+    } catch (error) {
+      console.error('Error:', error);
+      alert.error('Failed to convert LaTeX');
+    }
+  };
+
+  return (
+    <button
+      className='bg-blue-500 text-white px-2 rounded hover:bg-blue-600 transition-colors duration-200'
+      onClick={handleConvert}
+    >
+      Convert to PDF
+    </button>
+  );
+};
+
 const OroraApp: React.FC = () => {
   const {
-    cells,
+    getCells,
     addCell,
     updateCell,
     deleteCell,
+    deleteOutput,
     executeCell,
     isConnected,
     error,
@@ -47,10 +138,26 @@ const OroraApp: React.FC = () => {
     updateCellShowStatus,
   } = useOrora();
   const [isClient, setIsClient] = useState(false);
-  const [projectName, setProjectName] = useState('');
+  const [projectName, setProjectName] = useState('ORORA Project');
+  const [latexForm, setLatexForm] = useState<string>('');
+  const [cells, setCells] = useState<Cell[]>([]);
+
+  useEffect(() => {
+    setCells(getCells());
+    if (cells.length > 0 && !selectedCellId) {
+      setSelectedCellId(cells[0].id);
+    }
+  }, [getCells, cells, selectedCellId, setSelectedCellId]);
 
   useEffect(() => {
     setIsClient(true);
+
+    fetch('/latex-form.tex')
+      .then((response) => response.text())
+      .then((data) => {
+        setLatexForm(data);
+      })
+      .catch((error) => console.error('Error loading LaTeX content:', error));
   }, []);
 
   useEffect(() => {
@@ -91,7 +198,7 @@ const OroraApp: React.FC = () => {
   const items: AnimatedCellItem[] = useMemo(() => {
     return cells
       .flatMap((cell, index): AnimatedCellItem[] => [
-        { type: 'button' as const, id: `button-${index}`, index },
+        { type: 'button' as const, id: `${latexForm}button-${index}`, index },
         { type: 'cell' as const, id: cell.id, cell },
       ])
       .concat({
@@ -99,7 +206,7 @@ const OroraApp: React.FC = () => {
         id: `button-${cells.length}`,
         index: cells.length,
       });
-  }, [cells]);
+  }, [cells, latexForm]);
 
   const transitions = useTransition(items, {
     keys: (item) => item.id,
@@ -131,7 +238,7 @@ const OroraApp: React.FC = () => {
               fallback={<div className='h-32 bg-gray-100 animate-pulse'></div>}
             >
               <OroraCell
-                key={item.cell.id} // 이 부분을 확인하세요
+                key={item.cell.id}
                 cell={item.cell}
                 updateCell={memoizedUpdateCell}
                 deleteCell={deleteCell}
@@ -140,6 +247,7 @@ const OroraApp: React.FC = () => {
                 onSelect={() => setSelectedCellId(item.cell.id)}
                 updateShowStatus={updateCellShowStatus}
                 selectedCellId={selectedCellId}
+                deleteOutput={deleteOutput}
               />
             </React.Suspense>
           ) : null}
@@ -150,6 +258,7 @@ const OroraApp: React.FC = () => {
       isClient,
       memoizedUpdateCell,
       deleteCell,
+      deleteOutput,
       memoizedExecuteCell,
       memoizedAddCell,
       selectedCellId,
@@ -170,35 +279,40 @@ const OroraApp: React.FC = () => {
   }
 
   return (
-    <div className='flex flex-col h-screen'>
-      <header className='bg-white shadow sticky top-0 z-50'>
-        <div className='w-full flex py-3 px-4 items-center justify-between sm:px-6 lg:px-8'>
-          <div className='h-full flex items-center gap-8'>
-            <h1 className='text-3xl text-gray-900'>Orora</h1>
-            <input
-              type='text'
-              value={projectName}
-              onChange={(e) => setProjectName(e.target.value)}
-              className='block pt-1 text-2xl h-full font-large text-gray-900'
-              placeholder='Project Name'
-            />
-          </div>
-          {isConnected ? (
-            <div className='text-center'>
-              <p className='text-green-600'>Connected to Orora server</p>
-              <p className='text-xs'>
-                Server URL : {process.env.NEXT_PUBLIC_API_URL}
-              </p>
+    <AlertProvider template={AlertTemplate} {...options}>
+      <div className='flex flex-col h-screen'>
+        <header className='bg-white shadow sticky top-0 z-50'>
+          <div className='w-full flex py-3 px-4 items-center justify-between sm:px-6 lg:px-8'>
+            <div className='h-full flex items-center gap-8'>
+              <h1 className='text-3xl text-gray-900'>Orora</h1>
+              <input
+                type='text'
+                value={projectName}
+                onChange={(e) => setProjectName(e.target.value)}
+                className='block pt-1 text-2xl h-full font-large text-gray-900'
+                placeholder='Project Name'
+              />
             </div>
-          ) : (
-            <p className='text-red-600'>Not connected to Orora server</p>
-          )}
+            <div className='flex gap-4'>
+              <LatexConvertButton title={projectName} cells={cells} />
+              {isConnected ? (
+                <div className='text-center'>
+                  <p className='text-green-600'>Connected to Orora server</p>
+                  <p className='text-xs'>
+                    Server URL : {process.env.NEXT_PUBLIC_API_URL}
+                  </p>
+                </div>
+              ) : (
+                <p className='text-red-600'>Not connected to Orora server</p>
+              )}
+            </div>
+          </div>
+        </header>
+        <div className='scrollbar flex-1 bg-gray-100 w-full h-full overflow-y-scroll pb-36 px-6 pt-16'>
+          {memoizedCells}
         </div>
-      </header>
-      <div className='scrollbar flex-1 bg-gray-100 w-full h-full overflow-y-scroll pb-36 px-6 pt-16'>
-        {memoizedCells}
       </div>
-    </div>
+    </AlertProvider>
   );
 };
 

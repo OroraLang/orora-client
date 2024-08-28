@@ -10,11 +10,13 @@ Install the latest version of ORORA-WEB-CLIENT from the [releases page](https://
 - Node.js
 - npx
 - orora-lang
+- latexmk
 
 ## Usage
 1. Run the following command to start the server:
 ```bash
-orora & npx serve orora-web-client
+cd orora-web-client
+orora & ./orora-web-client/run.sh
 ```
 2. Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
 
